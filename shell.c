@@ -31,7 +31,32 @@ int interactiveShell() {
   return 0;
 }
 
-void processLine(char *line) { printf("processing line: %s\n", line); }
+void processLine(char *line) {
+    printf("processing line: %s\n", line);
+    char *commands[100];
+    int index = 0;
+    char *token = strtok(line, " ");
+    while (token != NULL) {
+        printf("Token %d: %s\n", index, token);
+        commands[index++] = token;
+        token = strtok(NULL, " ");
+    }
+    commands[index] = NULL; // Null-terminate the array of commands
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        // Child process
+        execvp(commands[0], commands);
+        perror("execvp failed");
+        _exit(1); // Terminate child process if execvp fails
+    } else if (pid > 0) {
+        // Parent process
+        int status;
+        waitpid(pid, &status, 0);
+    } else {
+        perror("fork failed");
+    }
+}
 
 int runTests() {
   printf("*** Running basic tests ***\n");
