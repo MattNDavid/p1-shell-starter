@@ -30,32 +30,55 @@ int interactiveShell() {
   free(line);
   return 0;
 }
+void processCommand(char *cmd, bool ampersand) {
+  char *commands[100];
+  int index = 0;
+
+  char *token = strtok(cmd, " ");
+  while (token != NULL) {
+    commands[index++] = token;
+    token = strtok(NULL, " ");
+  }
+  commands[index] = NULL;
+
+  pid_t pid = fork();
+  if (pid == 0) {
+    // Child process
+    execvp(commands[0], commands);
+    perror("execvp failed");
+    _exit(1);
+  } else if (pid > 0) {
+    // Parent process
+    if (!ampersand) {
+      int status;
+      waitpid(pid, &status, 0);
+    } else {
+      printf("Running %s in the background\n", commands[0]);
+    }
+  } else {
+    perror("fork failed");
+  }
+}
 
 void processLine(char *line) {
-    printf("processing line: %s\n", line);
-    char *commands[100];
-    int index = 0;
-    char *token = strtok(line, " ");
-    while (token != NULL) {
-        printf("Token %d: %s\n", index, token);
-        commands[index++] = token;
-        token = strtok(NULL, " ");
-    }
-    commands[index] = NULL; // Null-terminate the array of commands
 
-    pid_t pid = fork();
-    if (pid == 0) {
-        // Child process
-        execvp(commands[0], commands);
-        perror("execvp failed");
-        _exit(1); // Terminate child process if execvp fails
-    } else if (pid > 0) {
-        // Parent process
-        int status;
-        waitpid(pid, &status, 0);
-    } else {
-        perror("fork failed");
+  printf("processing line: %s\n", line);
+
+  char *command = strtok(line, ";");
+  while (command != NULL) {
+    // Check if the command should run in the background
+    bool ampersand = false;
+    if (command[strlen(command) - 1] == '&') {
+      ampersand = true;
+      command[3] = '\0'; // Remove the & character
     }
+    for(int i = 0; i < strlen(command); i++) {
+      printf("command[%d] = %c\n", i, command[i]);
+    }
+    processCommand(command, ampersand);
+
+    command = strtok(NULL, ";");
+  }
 }
 
 int runTests() {
